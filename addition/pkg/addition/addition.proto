@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package addition;
+
+option go_package = "addition/addition";
+
+// The greeting service definition.
+service Adder {
+  // Sends a greeting
+  rpc CalcAdd (AddRequest) returns (AddResponse) {}
+}
+
+// The request message containing the user's name.
+message AddRequest {
+  string args = 1;
+}
+
+// The response message containing the greetings
+message AddResponse {
+  string sum = 1;
+}
