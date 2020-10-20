@@ -3,32 +3,48 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 
-	// cb "google.golang.org/api/cloudbilling/v1"
 	pb "addition/pkg/addition"
 	"google.golang.org/grpc"
+	"strconv"
+	"strings"
 )
 
 const (
 	port = ":50051"
 )
 
-// sayHello implements helloworld.GreeterServer.SayHello
-func getServices(ctx context.Context, in *pb.AdderService) (*pb.AddResponse, error) {
-	// billingbudgetsService, err := cb.NewService(ctx)
-	// if err != nil {
-	// 	panic(err)
-	// }
+type server struct {
+	pb.UnimplementedAdderServer
+}
 
-	log.Printf("Received: %v", in.GetName())
-	var names []*pb.Service
-	service := &pb.Service{
-		Name: "Trevor",
+// Add accepts a string eg:"1+1+2" splits, converts to float, sums and returns those values
+func Add(a string) (sum string) {
+	digitsStr := strings.Split(a, "+")
+	fmt.Println("digits", digitsStr)
+	var computeSum float64
+	for i, d := range digitsStr {
+		fmt.Println(i, d)
+		f, err := strconv.ParseFloat(d, 64)
+		if err != nil {
+			e := fmt.Errorf("Invalid argument %q", err)
+			fmt.Println(e.Error())
+		}
+		computeSum += f
+		fmt.Println("computeSum", computeSum)
 	}
-	names = append(names, service)
-	return &pb.ServicesResponse{Names: names}, nil
+	sum = fmt.Sprintf("%f", computeSum)
+	return
+}
+
+// sayHello implements helloworld.GreeterServer.SayHello
+func (s *server) CalcAdd(ctx context.Context, in *pb.AddRequest) (*pb.AddResponse, error) {
+	log.Printf("Received: %v", in.GetArgs())
+	sum := Add(in.GetArgs())
+	return &pb.AddResponse{Sum: sum}, nil
 }
 
 func main() {
@@ -37,7 +53,7 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	pb.RegisterCloudBillingService(s, &pb.CloudBillingService{GetServices: getServices})
+	pb.RegisterAdderServer(s, &server{})
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

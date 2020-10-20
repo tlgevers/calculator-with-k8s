@@ -29,10 +29,6 @@ func NewAdderClient(cc grpc.ClientConnInterface) AdderClient {
 	return &adderClient{cc}
 }
 
-var adderCalcAddStreamDesc = &grpc.StreamDesc{
-	StreamName: "CalcAdd",
-}
-
 func (c *adderClient) CalcAdd(ctx context.Context, in *AddRequest, opts ...grpc.CallOption) (*AddResponse, error) {
 	out := new(AddResponse)
 	err := c.cc.Invoke(ctx, "/addition.Adder/CalcAdd", in, out, opts...)
@@ -42,52 +38,62 @@ func (c *adderClient) CalcAdd(ctx context.Context, in *AddRequest, opts ...grpc.
 	return out, nil
 }
 
-// AdderService is the service API for Adder service.
-// Fields should be assigned to their respective handler implementations only before
-// RegisterAdderService is called.  Any unassigned fields will result in the
-// handler for that method returning an Unimplemented error.
-type AdderService struct {
+// AdderServer is the server API for Adder service.
+// All implementations must embed UnimplementedAdderServer
+// for forward compatibility
+type AdderServer interface {
 	// Sends a greeting
-	CalcAdd func(context.Context, *AddRequest) (*AddResponse, error)
+	CalcAdd(context.Context, *AddRequest) (*AddResponse, error)
+	mustEmbedUnimplementedAdderServer()
 }
 
-func (s *AdderService) calcAdd(_ interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+// UnimplementedAdderServer must be embedded to have forward compatible implementations.
+type UnimplementedAdderServer struct {
+}
+
+func (UnimplementedAdderServer) CalcAdd(context.Context, *AddRequest) (*AddResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CalcAdd not implemented")
+}
+func (UnimplementedAdderServer) mustEmbedUnimplementedAdderServer() {}
+
+// UnsafeAdderServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to AdderServer will
+// result in compilation errors.
+type UnsafeAdderServer interface {
+	mustEmbedUnimplementedAdderServer()
+}
+
+func RegisterAdderServer(s *grpc.Server, srv AdderServer) {
+	s.RegisterService(&_Adder_serviceDesc, srv)
+}
+
+func _Adder_CalcAdd_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return s.CalcAdd(ctx, in)
+		return srv.(AdderServer).CalcAdd(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
-		Server:     s,
+		Server:     srv,
 		FullMethod: "/addition.Adder/CalcAdd",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return s.CalcAdd(ctx, req.(*AddRequest))
+		return srv.(AdderServer).CalcAdd(ctx, req.(*AddRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// RegisterAdderService registers a service implementation with a gRPC server.
-func RegisterAdderService(s grpc.ServiceRegistrar, srv *AdderService) {
-	srvCopy := *srv
-	if srvCopy.CalcAdd == nil {
-		srvCopy.CalcAdd = func(context.Context, *AddRequest) (*AddResponse, error) {
-			return nil, status.Errorf(codes.Unimplemented, "method CalcAdd not implemented")
-		}
-	}
-	sd := grpc.ServiceDesc{
-		ServiceName: "addition.Adder",
-		Methods: []grpc.MethodDesc{
-			{
-				MethodName: "CalcAdd",
-				Handler:    srvCopy.calcAdd,
-			},
+var _Adder_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "addition.Adder",
+	HandlerType: (*AdderServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CalcAdd",
+			Handler:    _Adder_CalcAdd_Handler,
 		},
-		Streams:  []grpc.StreamDesc{},
-		Metadata: "pkg/addition/addition.proto",
-	}
-
-	s.RegisterService(&sd, nil)
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "pkg/addition/addition.proto",
 }
